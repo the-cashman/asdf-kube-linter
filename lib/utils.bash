@@ -36,8 +36,9 @@ download_release() {
   local version="$1"
   local filename="$2"
 
-  local uname_s os url
+  local uname_s arch os bin_name url
   uname_s="$(uname -s)"
+  arch="$(uname -m)"
 
   case "$uname_s" in
     Darwin) os="darwin" ;;
@@ -45,7 +46,13 @@ download_release() {
     *) fail "OS not supported: $uname_s" ;;
   esac
 
-  url="$GH_REPO/releases/download/${version}/kube-linter-${os}.tar.gz"
+  case "$arch" in
+    x86_64)   bin_name="kube-linter-${os}.tar.gz" ;;
+    aarch64)   bin_name="kube-linter-${os}_arm64.tar.gz" ;;
+    *) fail "Architecture not supported: $arch" ;;
+  esac
+
+  url="$GH_REPO/releases/download/${version}/${bin_name}"
 
   echo "* Downloading $TOOL_NAME release $version..."
   curl "${curl_opts[@]}" -o "$filename" -C - "$url" || fail "Could not download $url"
