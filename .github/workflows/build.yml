@@ -25,6 +25,8 @@ jobs:
         with:
           platform: x64
 
+      - uses: asdf-vm/actions/setup@v4
+
       - name: asdf_plugin_test
         uses: asdf-vm/plugin-test@v4
         with:
