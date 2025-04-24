@@ -3,7 +3,7 @@ name: Build and Test
 on:
   push:
     branches:
-      - main
+      - "*"
   schedule:
     - cron: "0 23 * * *"
   pull_request:
@@ -26,7 +26,7 @@ jobs:
           platform: x64
 
       - name: asdf_plugin_test
-        uses: asdf-vm/actions/plugin-test@v1
+        uses: asdf-vm/actions/plugin-test@v4
         with:
           command: kube-linter --help
 
