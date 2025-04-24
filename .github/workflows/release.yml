@@ -6,9 +6,23 @@ on:
       - main
 
 jobs:
-  release-please:
+  # Run tests before creating a release
+  test:
+    name: Run tests before release
     runs-on: ubuntu-latest
     steps:
-      - uses: GoogleCloudPlatform/release-please-action@v2
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Run download tests
+        run: |
+          ./test_download.sh
+
+  release-please:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: google-github-actions/release-please-action@v3
         with:
           release-type: simple
+          package-name: asdf-kube-linter

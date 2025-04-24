@@ -36,18 +36,49 @@ download_release() {
   local version="$1"
   local filename="$2"
 
-  local uname_s os url
+  local uname_s uname_m os arch_suffix url url_with_v url_without_v
   uname_s="$(uname -s)"
+  uname_m="$(uname -m)"
 
+  # Determine OS
   case "$uname_s" in
     Darwin) os="darwin" ;;
     Linux) os="linux" ;;
+    MINGW* | MSYS* | CYGWIN*) os="windows" ;;
     *) fail "OS not supported: $uname_s" ;;
   esac
 
-  url="$GH_REPO/releases/download/${version}/kube-linter-${os}.tar.gz"
+  # Determine architecture suffix
+  arch_suffix=""
+  case "$uname_m" in
+    arm64 | aarch64) arch_suffix="_arm64" ;;
+  esac
 
-  echo "* Downloading $TOOL_NAME release $version..."
+  # For Windows, use .exe extension
+  if [[ "$os" == "windows" ]]; then
+    if [[ -n "$arch_suffix" ]]; then
+      os="${TOOL_NAME}${arch_suffix}.exe"
+    else
+      os="${TOOL_NAME}.exe"
+    fi
+  else
+    os="${os}${arch_suffix}"
+  fi
+
+  # Try both URL formats (with and without 'v' prefix)
+  url_with_v="$GH_REPO/releases/download/v${version}/kube-linter-${os}.tar.gz"
+  url_without_v="$GH_REPO/releases/download/${version}/kube-linter-${os}.tar.gz"
+
+  echo "* Downloading $TOOL_NAME release $version for ${os}..."
+
+  # First try with 'v' prefix
+  if curl -f -I "${curl_opts[@]}" "$url_with_v" &> /dev/null; then
+    url="$url_with_v"
+  else
+    # If that fails, try without 'v' prefix
+    url="$url_without_v"
+  fi
+
   curl "${curl_opts[@]}" -o "$filename" -C - "$url" || fail "Could not download $url"
 }
 
