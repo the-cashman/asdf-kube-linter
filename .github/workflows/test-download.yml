@@ -3,7 +3,7 @@ name: Test Downloads
 on:
   push:
     branches:
-      - main
+      - "*"
   pull_request:
   schedule:
     # Run weekly to catch any GitHub API or release format changes
