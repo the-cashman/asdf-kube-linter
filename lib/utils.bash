@@ -113,7 +113,8 @@ get_download_url() {
   # Try .tar.gz URL first
   local tar_url="$GH_REPO/releases/download/${actual_tag}/kube-linter-${asset_os_arch}.tar.gz"
   echo "DEBUG: Checking URL (tar.gz): $tar_url" >&2
-  http_code=$(curl -I -L -o /dev/null -s -w "%{http_code}" "${curl_opts[@]}" "$tar_url")
+  # Perform HEAD request *without* auth token to check existence
+  http_code=$(curl -I -L -o /dev/null -s -w "%{http_code}" "$tar_url")
   echo "DEBUG: HTTP status (tar.gz): $http_code" >&2
 
   if [ "$http_code" -eq 200 ]; then
@@ -127,7 +128,8 @@ get_download_url() {
   local raw_url="$GH_REPO/releases/download/${actual_tag}/${raw_binary_name}"
 
   echo "DEBUG: Checking URL (raw): $raw_url" >&2
-  http_code=$(curl -I -L -o /dev/null -s -w "%{http_code}" "${curl_opts[@]}" "$raw_url")
+  # Perform HEAD request *without* auth token to check existence
+  http_code=$(curl -I -L -o /dev/null -s -w "%{http_code}" "$raw_url")
   echo "DEBUG: HTTP status (raw): $http_code" >&2
 
   if [ "$http_code" -eq 200 ]; then
