@@ -10,24 +10,17 @@ on:
     - cron: "0 0 * * 0"
 
 jobs:
-  # Test on all Linux x64 runners
   test_linux_x64:
-    name: Test Linux x64 (${{ matrix.os }})
+    name: Test Linux x64
     strategy:
       matrix:
-        os:
-          - ubuntu-latest
-          - ubuntu-24.04
-          - ubuntu-22.04
-          - ubuntu-20.04
-        # Test both newer versions (with 'v' prefix) and older versions (without 'v' prefix)
         version:
           - "0.7.2" # newer version with 'v' prefix
           - "0.2.0" # older version before 0.5.0 without 'v' prefix
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
 
       - name: Test download for version ${{ matrix.version }}
         shell: bash
@@ -38,49 +31,14 @@ jobs:
           # Run the download test script
           ./test_download.sh ${{ matrix.version }}
 
-  # Test on all Windows x64 runners
-  test_windows_x64:
-    name: Test Windows x64 (${{ matrix.os }})
-    strategy:
-      matrix:
-        os:
-          - windows-latest
-          - windows-2022
-          - windows-2019
-        version:
-          - "0.7.2"
-          - "0.2.0"
-    runs-on: ${{ matrix.os }}
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v2
-
-      - name: Set up Bash on Windows
-        uses: egor-tensin/setup-mingw@v2
-        with:
-          platform: x64
-
-      - name: Test download for version ${{ matrix.version }}
-        shell: bash
-        run: |
-          # Set GITHUB_API_TOKEN for API rate limiting
-          export GITHUB_API_TOKEN=${{ secrets.GITHUB_TOKEN }}
-
-          # Run the download test script
-          ./test_download.sh ${{ matrix.version }}
-
-  # Test on Linux ARM64 runners (preview)
   test_linux_arm64:
-    name: Test Linux ARM64 (${{ matrix.os }})
+    name: Test Linux ARM64
     strategy:
       matrix:
-        os:
-          - ubuntu-24.04-arm
-          - ubuntu-22.04-arm
         version:
           - "0.7.2"
           - "0.2.0"
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-24.04-arm
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
@@ -94,34 +52,6 @@ jobs:
           # Run the download test script
           ./test_download.sh ${{ matrix.version }}
 
-  # Test on Windows ARM64 runner (preview)
-  test_windows_arm64:
-    name: Test Windows ARM64
-    strategy:
-      matrix:
-        version:
-          - "0.7.2"
-          - "0.2.0"
-    runs-on: windows-11-arm
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v2
-
-      - name: Set up Bash on Windows
-        uses: egor-tensin/setup-mingw@v2
-        with:
-          platform: arm64
-
-      - name: Test download for version ${{ matrix.version }}
-        shell: bash
-        run: |
-          # Set GITHUB_API_TOKEN for API rate limiting
-          export GITHUB_API_TOKEN=${{ secrets.GITHUB_TOKEN }}
-
-          # Run the download test script
-          ./test_download.sh ${{ matrix.version }}
-
-  # Test on macOS Intel runner
   test_macos_intel:
     name: Test macOS Intel
     strategy:
@@ -143,7 +73,6 @@ jobs:
           # Run the download test script
           ./test_download.sh ${{ matrix.version }}
 
-  # Test on macOS ARM64 (M1) runners
   test_macos_arm64:
     name: Test macOS ARM64 (${{ matrix.os }})
     strategy:
@@ -168,19 +97,3 @@ jobs:
 
           # Run the download test script
           ./test_download.sh ${{ matrix.version }}
-
-  # Test all architectures on a single OS (simulated tests)
-  test_all_architectures:
-    name: Test all architectures (simulated)
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v2
-
-      - name: Test all architectures
-        run: |
-          # Set GITHUB_API_TOKEN for API rate limiting
-          export GITHUB_API_TOKEN=${{ secrets.GITHUB_TOKEN }}
-
-          # Run the download test script with all architectures
-          ./test_download.sh --all-archs

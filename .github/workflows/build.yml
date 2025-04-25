@@ -18,6 +18,9 @@ jobs:
           - macos-latest
     runs-on: ${{ matrix.os }}
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
       - name: asdf plugin tests
         uses: asdf-vm/actions/plugin-test@v3
         with:

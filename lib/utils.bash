@@ -32,6 +32,36 @@ list_all_versions() {
   list_github_tags
 }
 
+# Check if a version is supported for a specific architecture
+is_version_supported_for_arch() {
+  local version="$1"
+  local os="$2"
+  local arch_suffix="$3"
+
+  # Skip check for standard architectures (always supported)
+  if [[ -z "$arch_suffix" ]]; then
+    return 0
+  fi
+
+  # Convert version string to a comparable number
+  # Remove 'v' prefix if present
+  local ver_num="${version#v}"
+
+  # Split version into components
+  IFS='.' read -r major minor patch <<<"$ver_num"
+  patch="${patch:-0}" # Default to 0 if patch is not specified
+
+  # Convert to a single number for comparison (major*10000 + minor*100 + patch)
+  local ver_val=$((major * 10000 + minor * 100 + patch))
+
+  # ARM64 architectures were added in v0.6.8
+  if [[ "$arch_suffix" == "_arm64" && "$ver_val" -lt 608 ]]; then
+    return 1
+  fi
+
+  return 0
+}
+
 download_release() {
   local version="$1"
   local filename="$2"
@@ -42,17 +72,22 @@ download_release() {
 
   # Determine OS
   case "$uname_s" in
-    Darwin) os="darwin" ;;
-    Linux) os="linux" ;;
-    MINGW* | MSYS* | CYGWIN*) os="windows" ;;
-    *) fail "OS not supported: $uname_s" ;;
+  Darwin) os="darwin" ;;
+  Linux) os="linux" ;;
+  MINGW* | MSYS* | CYGWIN*) os="windows" ;;
+  *) fail "OS not supported: $uname_s" ;;
   esac
 
   # Determine architecture suffix
   arch_suffix=""
   case "$uname_m" in
-    arm64 | aarch64) arch_suffix="_arm64" ;;
+  arm64 | aarch64) arch_suffix="_arm64" ;;
   esac
+
+  # Check if this version supports the detected architecture
+  if ! is_version_supported_for_arch "$version" "$os" "$arch_suffix"; then
+    fail "Architecture ${os}${arch_suffix} is not supported in version $version. ARM64 support was added in v0.6.8 and later."
+  fi
 
   # For Windows, use .exe extension
   if [[ "$os" == "windows" ]]; then
@@ -72,7 +107,7 @@ download_release() {
   echo "* Downloading $TOOL_NAME release $version for ${os}..."
 
   # First try with 'v' prefix
-  if curl -f -I "${curl_opts[@]}" "$url_with_v" &> /dev/null; then
+  if curl -f -I "${curl_opts[@]}" "$url_with_v" &>/dev/null; then
     url="$url_with_v"
   else
     # If that fails, try without 'v' prefix
