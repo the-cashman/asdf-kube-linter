@@ -69,7 +69,7 @@ jobs:
         continue-on-error: ${{ matrix.expect_fail }}
         uses: asdf-vm/actions/plugin-test@v3
         with:
-          command: kube-linter version
+          command: kube-linter --help
           version: ${{ matrix.version }}
         env:
           # Pass GitHub token for potential rate limiting during tag fetching
