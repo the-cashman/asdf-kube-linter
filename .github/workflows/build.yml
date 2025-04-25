@@ -16,19 +16,13 @@ jobs:
         os:
           - ubuntu-latest
           - macos-latest
-          - windows-latest
     runs-on: ${{ matrix.os }}
     steps:
-      - name: Set up Bash on Windows
-        if: runner.os == 'Windows'
-        uses: egor-tensin/setup-mingw@v2
-        with:
-          platform: x64
+      - name: Install asdf
+        uses: asdf-vm/actions/install@v4
 
-      - uses: asdf-vm/actions/setup@v4
-
-      - name: asdf_plugin_test
-        uses: asdf-vm/plugin-test@v4
+      - name: asdf plugin tests
+        uses: asdf-vm/actions/plugin-test@v4
         with:
           command: kube-linter --help
 
