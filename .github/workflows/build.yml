@@ -24,7 +24,7 @@ jobs:
       image: ${{ matrix.container }}
 
     steps:
-      - uses: asdf-vm/actions/plugin-test@latest
+      - uses: asdf-vm/actions/plugin-test@v3
         with:
           command: kube-linter --help
 
