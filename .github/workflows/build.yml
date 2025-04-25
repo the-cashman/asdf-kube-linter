@@ -9,7 +9,6 @@ on:
   pull_request:
 
 jobs:
-jobs:
   plugin_test:
     strategy:
       fail-fast: false
@@ -25,7 +24,7 @@ jobs:
       image: ${{ matrix.container }}
 
     steps:
-      - uses: asdf-vm/actions/plugin-test@latest
+      - uses: asdf-vm/actions/plugin-test@v4
         with:
           command: kube-linter --help
 
