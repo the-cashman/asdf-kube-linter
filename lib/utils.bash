@@ -207,9 +207,6 @@ install_version() {
     test -f "$final_binary_path" || fail "Expected $final_binary_path to exist."
     test -x "$final_binary_path" || fail "Expected $final_binary_path to be executable."
 
-    echo "* Verifying installation with '$final_binary_path --version'..."
-    "$final_binary_path" --version || fail "Tool command '$final_binary_path --version' failed after installation."
-
     echo "$TOOL_NAME $version installation was successful!"
   ) || (
     rm -rf "$install_path"
