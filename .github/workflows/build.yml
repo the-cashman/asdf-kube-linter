@@ -12,61 +12,37 @@ jobs:
   plugin_test:
     name: asdf plugin test
     strategy:
-      fail-fast: false
       matrix:
         include:
           # Linux amd64
           - os: ubuntu-22.04
             version: "0.1.0"
-            expect_fail: false
           - os: ubuntu-22.04
             version: "0.6.1"
-            expect_fail: false
           - os: ubuntu-22.04
-            version: "0.7.2"
-            expect_fail: false
+            version: "0.6.8"
+
           # Linux arm64
           - os: ubuntu-22.04-arm
-            version: "0.1.0"
-            expect_fail: true # No arm64 support
-          - os: ubuntu-22.04-arm
-            version: "0.6.1"
-            expect_fail: true # No arm64 support
-          - os: ubuntu-22.04-arm
-            version: "0.7.2"
-            expect_fail: false
+            version: "0.6.8"
+
           # macOS amd64 (Intel)
           - os: macos-13
             version: "0.1.0"
-            expect_fail: false
           - os: macos-13
             version: "0.6.1"
-            expect_fail: false
           - os: macos-13
-            version: "0.7.2"
-            expect_fail: false
+            version: "0.6.8"
+
           # macOS arm64 (Apple Silicon)
           - os: macos-latest
-            version: "0.1.0"
-            expect_fail: true # No arm64 support
-          - os: macos-latest
-            version: "0.6.1"
-            expect_fail: true # No arm64 support
-          - os: macos-latest
-            version: "0.7.2"
-            expect_fail: false # Supports arm64
+            version: "0.6.8"
     runs-on: ${{ matrix.os }}
-    # Removed duplicate name key here. The job name is defined above (line 13).
-    # Matrix runs will be named automatically based on matrix values.
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
       - name: Run asdf plugin test for version ${{ matrix.version }}
-        # Give this step an ID to reference its outcome later
-        id: plugin_test_step
-        # Allow expected failures for unsupported architectures to continue
-        continue-on-error: ${{ matrix.expect_fail }}
         uses: asdf-vm/actions/plugin-test@v3
         with:
           command: kube-linter --help
@@ -74,21 +50,3 @@ jobs:
         env:
           # Pass GitHub token for potential rate limiting during tag fetching
           GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      # Add a step to verify the outcome matches expectations
-      - name: Verify test outcome
-        if: always()
-        run: |
-          echo "DEBUG: Expected fail: ${{ matrix.expect_fail }}"
-          echo "DEBUG: Actual outcome: ${{ steps.plugin_test_step.outcome }}"
-          if [[ "${{ matrix.expect_fail }}" == "true" && "${{ steps.plugin_test_step.outcome }}" == "success" ]]; then
-            echo "❌ Error: Test for ${{ matrix.version }} on ${{ matrix.os }} succeeded but was expected to fail (unsupported architecture)."
-            exit 1
-          elif [[ "${{ matrix.expect_fail }}" == "false" && "${{ steps.plugin_test_step.outcome }}" != "success" ]]; then
-            echo "❌ Error: Test for ${{ matrix.version }} on ${{ matrix.os }} failed but was expected to succeed."
-            exit 1
-          elif [[ "${{ matrix.expect_fail }}" == "true" && "${{ steps.plugin_test_step.outcome }}" == "failure" ]]; then
-            echo "✅ Success: Test for ${{ matrix.version }} on ${{ matrix.os }} correctly failed as expected (unsupported architecture)."
-          else
-            echo "✅ Success: Test for ${{ matrix.version }} on ${{ matrix.os }} succeeded as expected."
-          fi

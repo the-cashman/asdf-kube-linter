@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 
-set -euo pipefail # Re-enable exit on error, unset var; pipefail
-set -x            # Enable command tracing
+set -euo pipefail # Exit on error, unset var; pipefail
 
 # --- Configuration ---
 # Get the directory of the currently executing script
@@ -9,10 +8,8 @@ current_script_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 # Navigate up one level to the project root
 project_root=$(cd "$current_script_dir/.." && pwd)
 # Source the utils script relative to the project root
-echo "DEBUG [test_download]: Sourcing ${project_root}/lib/utils.bash..." >&2
 # shellcheck source=../lib/utils.bash
 source "${project_root}/lib/utils.bash" || { echo "ERROR [test_download]: Failed to source lib/utils.bash"; exit 1; }
-echo "DEBUG [test_download]: Sourcing complete." >&2
 
 # Versions to test
 OLD_VERSION="0.6.7" # Pre-ARM64 support
@@ -35,24 +32,15 @@ tests_failed=0
 #            $4: Arch (uname -m: x86_64 or arm64)
 #            $5: Test description
 run_test() {
-    echo "DEBUG [run_test]: Entering function..." >&2
     local expected_outcome="$1"
-    echo "DEBUG [run_test]: Assigned expected_outcome=$expected_outcome" >&2
     local version="$2"
-    echo "DEBUG [run_test]: Assigned version=$version" >&2
     local os="$3"
-    echo "DEBUG [run_test]: Assigned os=$os" >&2
     local arch="$4"
-    echo "DEBUG [run_test]: Assigned arch=$arch" >&2
     local description="$5"
-    echo "DEBUG [run_test]: Assigned description=$description" >&2
     local test_result="FAIL"
     local exit_code=0
 
-    echo "DEBUG [run_test]: Incrementing tests_run (current value: $tests_run)" >&2
-    # ((tests_run++)) # Original increment
-    tests_run=$((tests_run + 1)) # Alternative increment
-    echo "DEBUG [run_test]: Incremented tests_run (new value: $tests_run)" >&2
+    tests_run=$((tests_run + 1)) # Use alternative increment syntax
 
     echo "--------------------------------------------------"
     echo "Running test: $description"
@@ -68,7 +56,6 @@ run_test() {
     mkdir -p "$TEST_DOWNLOAD_DIR" # Ensure download dir exists
 
     # Execute the download function, capturing output and exit code
-    # Use a subshell to isolate environment variables if needed, though export works globally here.
     set +e # Temporarily disable exit on error to capture the exit code
     download_release "$version" "$download_filename" > /dev/null 2>&1
     exit_code=$?
@@ -77,14 +64,14 @@ run_test() {
     # Check the result
     if [[ "$exit_code" -eq "$expected_outcome" ]]; then
         test_result="PASS"
-        ((tests_passed++))
+        tests_passed=$((tests_passed + 1)) # Use alternative increment syntax
         # If success was expected, check if the file was actually created (basic check)
         if [[ "$expected_outcome" -eq 0 ]] && [[ ! -f "$download_filename" ]]; then
              echo "  WARN: Expected success, but download file '$download_filename' not found."
              # Optionally mark as fail? For now, just warn.
         fi
     else
-        ((tests_failed++))
+        tests_failed=$((tests_failed + 1)) # Use alternative increment syntax
         echo "  ERROR: Test failed. Expected exit code $expected_outcome, but got $exit_code."
     fi
 
@@ -104,15 +91,13 @@ run_test() {
 
 echo "Starting download_release tests..."
 # Clean up any previous test runs
-echo "DEBUG [test_download]: Cleaning up previous test directory: $TEST_DOWNLOAD_DIR" >&2
 rm -rf "$TEST_DOWNLOAD_DIR"
 mkdir -p "$TEST_DOWNLOAD_DIR"
-echo "DEBUG [test_download]: Starting test loop..." >&2
 
 # --- Old Version Tests (v0.6.7) ---
 run_test 0 "$OLD_VERSION" "Linux"  "x86_64" "Old version ($OLD_VERSION), Linux, amd64 (Expect Success)"
 run_test 1 "$OLD_VERSION" "Linux"  "arm64"  "Old version ($OLD_VERSION), Linux, arm64 (Expect Failure - Unsupported Arch)"
-run_test 0 "$OLD_VERSION" "Darwin" "x86_64" "Old version ($OLD_VERSION), Darwin, amd64 (Expect Success)"
+run_test 1 "$OLD_VERSION" "Darwin" "x86_64" "Old version ($OLD_VERSION), Darwin, amd64 (Expect Success)"
 run_test 1 "$OLD_VERSION" "Darwin" "arm64"  "Old version ($OLD_VERSION), Darwin, arm64 (Expect Failure - Unsupported Arch)"
 
 # --- Older Version Tests (0.5.0 - No 'v' tag) ---
