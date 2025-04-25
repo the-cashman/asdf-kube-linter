@@ -28,8 +28,11 @@ sort_versions() {
 
 # Fetches all tags from the GitHub repository
 list_github_tags() {
-  git ls-remote --tags --refs "$GH_REPO" |
-    grep -o 'refs/tags/.*' | cut -d/ -f3- || fail "Could not list tags from $GH_REPO"
+  echo "DEBUG: Running git ls-remote --tags --refs $GH_REPO" >&2
+  local output
+  output=$(git ls-remote --tags --refs "$GH_REPO" 2>&1) || fail "git ls-remote failed with exit code $?. Output: $output"
+  echo "DEBUG: git ls-remote output received." >&2
+  echo "$output" | grep -o 'refs/tags/.*' | cut -d/ -f3- || fail "Could not parse tags from git ls-remote output. Output was: $output"
 }
 
 # Lists all versions, stripping the 'v' prefix for consistency.
