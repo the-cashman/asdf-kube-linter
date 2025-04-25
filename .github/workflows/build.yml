@@ -12,7 +12,7 @@ jobs:
   plugin_test:
     name: asdf plugin test
     strategy:
-      fail-fast: false # Allow other matrix jobs to continue if one fails
+      fail-fast: false
       matrix:
         include:
           # Linux amd64
@@ -23,7 +23,7 @@ jobs:
             version: "0.6.1"
             expect_fail: false
           - os: ubuntu-22.04
-            version: "0.7.0"
+            version: "0.7.2"
             expect_fail: false
           # Linux arm64
           - os: ubuntu-22.04-arm
@@ -33,7 +33,7 @@ jobs:
             version: "0.6.1"
             expect_fail: true # No arm64 support
           - os: ubuntu-22.04-arm
-            version: "0.7.0"
+            version: "0.7.2"
             expect_fail: false
           # macOS amd64 (Intel)
           - os: macos-13
@@ -43,18 +43,18 @@ jobs:
             version: "0.6.1"
             expect_fail: false
           - os: macos-13
-            version: "0.7.0"
+            version: "0.7.2"
             expect_fail: false
           # macOS arm64 (Apple Silicon)
-          - os: macos-latest # Currently maps to macos-14 (arm64)
+          - os: macos-latest
             version: "0.1.0"
             expect_fail: true # No arm64 support
           - os: macos-latest
             version: "0.6.1"
             expect_fail: true # No arm64 support
           - os: macos-latest
-            version: "0.7.0"
-            expect_fail: false
+            version: "0.7.2"
+            expect_fail: false # Supports arm64
     runs-on: ${{ matrix.os }}
     # Removed duplicate name key here. The job name is defined above (line 13).
     # Matrix runs will be named automatically based on matrix values.
@@ -77,7 +77,7 @@ jobs:
 
       # Add a step to verify the outcome matches expectations
       - name: Verify test outcome
-        if: always() # Run this step even if the previous one was skipped or failed
+        if: always()
         run: |
           echo "DEBUG: Expected fail: ${{ matrix.expect_fail }}"
           echo "DEBUG: Actual outcome: ${{ steps.plugin_test_step.outcome }}"

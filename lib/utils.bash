@@ -74,6 +74,7 @@ is_version_supported_for_arch() {
     local ver_val=$((major * 10000 + minor * 100 + patch))
     # ARM64 architectures were added in v0.6.8 (608)
     if [[ "$ver_val" -lt 608 ]]; then
+      # Version is older than 0.6.8, explicitly return failure for ARM64 request.
       # echo "DEBUG: Version $version ($ver_val) is less than 0.6.8 (608), ARM64 not supported." >&2
       return 1 # Not supported
     fi
@@ -145,11 +146,7 @@ install_version() {
     # echo "DEBUG: Copying files from $ASDF_DOWNLOAD_PATH to $install_path" >&2
 
     # Expect bin/download to have extracted the contents into ASDF_DOWNLOAD_PATH
-    # We need to copy everything from the download path to the install path
-    # Use dotglob to copy hidden files too, if any (like .DS_Store, though unlikely needed)
-    shopt -s dotglob
     cp -r "$ASDF_DOWNLOAD_PATH"/* "$install_path/" || fail "Failed to copy files from $ASDF_DOWNLOAD_PATH to $install_path"
-    shopt -u dotglob
 
     # Assert the main tool executable exists.
     local tool_cmd_path="$install_path/$TOOL_NAME"
