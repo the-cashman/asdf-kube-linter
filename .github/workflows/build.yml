@@ -10,21 +10,16 @@ on:
 
 jobs:
   plugin_test:
+    name: asdf plugin test
     strategy:
-      fail-fast: false
       matrix:
-        container:
-          - alpine:latest
-          - centos:latest
-          - ubuntu:latest
-
-    runs-on: ubuntu-latest
-
-    container:
-      image: ${{ matrix.container }}
-
+        os:
+          - ubuntu-latest
+          - macos-latest
+    runs-on: ${{ matrix.os }}
     steps:
-      - uses: asdf-vm/actions/plugin-test@v3
+      - name: asdf plugin tests
+        uses: asdf-vm/actions/plugin-test@v3
         with:
           command: kube-linter --help
 
