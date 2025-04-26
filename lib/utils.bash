@@ -72,7 +72,6 @@ download_release() {
   local os arch os_arch version_tag_v version_tag_no_v
   local asset_tarball asset_raw output_path_tarball output_path_raw
   local url_v_tar url_no_v_tar url_v_raw url_no_v_raw
-  local downloaded_asset_filename
 
   os=$(get_os) || exit 1
   arch=$(get_arch) || exit 1
@@ -92,24 +91,26 @@ download_release() {
   url_no_v_raw="$GH_REPO/releases/download/${version_tag_no_v}/${asset_raw}"
 
   if curl --fail "${curl_opts[@]}" -o "$output_path_tarball" -C - "$url_v_tar"; then
-    downloaded_asset_filename="$asset_tarball"
-  else
-    if curl --fail "${curl_opts[@]}" -o "$output_path_tarball" -C - "$url_no_v_tar"; then
-      downloaded_asset_filename="$asset_tarball"
-    else
-      if curl --fail "${curl_opts[@]}" -o "$output_path_raw" -C - "$url_v_raw"; then
-        downloaded_asset_filename="$asset_raw"
-      else
-        if curl --fail "${curl_opts[@]}" -o "$output_path_raw" -C - "$url_no_v_raw"; then
-          downloaded_asset_filename="$asset_raw"
-        else
-          fail "Could not download $TOOL_NAME $requested_version. All attempts failed. Tried:\n  - $url_v_tar\n  - $url_no_v_tar\n  - $url_v_raw\n  - $url_no_v_raw"
-        fi
-      fi
-    fi
+    echo "$asset_tarball"
+    return
   fi
 
-  echo "$downloaded_asset_filename"
+  if curl --fail "${curl_opts[@]}" -o "$output_path_tarball" -C - "$url_no_v_tar"; then
+    echo "$asset_tarball"
+    return
+  fi
+
+  if curl --fail "${curl_opts[@]}" -o "$output_path_raw" -C - "$url_v_raw"; then
+    echo "$asset_raw"
+    return
+  fi
+
+  if curl --fail "${curl_opts[@]}" -o "$output_path_raw" -C - "$url_no_v_raw"; then
+    echo "$asset_raw"
+    return
+  fi
+
+  fail "Could not download $TOOL_NAME $requested_version. All attempts failed. Tried:\n  - $url_v_tar\n  - $url_no_v_tar\n  - $url_v_raw\n  - $url_no_v_raw"
 }
 
 install_version() {
