@@ -21,9 +21,9 @@ get_os() {
   local os
   os=$(uname -s)
   case $os in
-    Linux) echo "linux" ;;
-    Darwin) echo "darwin" ;;
-    *) fail "Unsupported operating system: $os" ;;
+  Linux) echo "linux" ;;
+  Darwin) echo "darwin" ;;
+  *) fail "Unsupported operating system: $os" ;;
   esac
 }
 
@@ -31,9 +31,9 @@ get_arch() {
   local arch
   arch=$(uname -m)
   case $arch in
-    x86_64 | amd64) echo "amd64" ;;
-    arm64 | aarch64) echo "arm64" ;;
-    *) fail "Unsupported architecture: $arch" ;;
+  x86_64 | amd64) echo "amd64" ;;
+  arm64 | aarch64) echo "arm64" ;;
+  *) fail "Unsupported architecture: $arch" ;;
   esac
 }
 
@@ -92,24 +92,26 @@ download_release() {
   url_no_v_raw="$GH_REPO/releases/download/${version_tag_no_v}/${asset_raw}"
 
   if curl --fail "${curl_opts[@]}" -o "$output_path_tarball" -C - "$url_v_tar"; then
-    downloaded_asset_filename="$asset_tarball"
-  else
-    if curl --fail "${curl_opts[@]}" -o "$output_path_tarball" -C - "$url_no_v_tar"; then
-      downloaded_asset_filename="$asset_tarball"
-    else
-      if curl --fail "${curl_opts[@]}" -o "$output_path_raw" -C - "$url_v_raw"; then
-        downloaded_asset_filename="$asset_raw"
-      else
-        if curl --fail "${curl_opts[@]}" -o "$output_path_raw" -C - "$url_no_v_raw"; then
-          downloaded_asset_filename="$asset_raw"
-        else
-          fail "Could not download $TOOL_NAME $requested_version. All attempts failed. Tried:\n  - $url_v_tar\n  - $url_no_v_tar\n  - $url_v_raw\n  - $url_no_v_raw"
-        fi
-      fi
-    fi
+    echo "$asset_tarball"
+    return
   fi
 
-  echo "$downloaded_asset_filename"
+  if curl --fail "${curl_opts[@]}" -o "$output_path_tarball" -C - "$url_no_v_tar"; then
+    echo "$asset_tarball"
+    return
+  fi
+
+  if curl --fail "${curl_opts[@]}" -o "$output_path_raw" -C - "$url_v_raw"; then
+    echo "$asset_raw"
+    return
+  fi
+
+  if curl --fail "${curl_opts[@]}" -o "$output_path_raw" -C - "$url_no_v_raw"; then
+    echo "$asset_raw"
+    return
+  fi
+
+  fail "Could not download $TOOL_NAME $requested_version. All attempts failed. Tried:\n  - $url_v_tar\n  - $url_no_v_tar\n  - $url_v_raw\n  - $url_no_v_raw"
 }
 
 install_version() {
@@ -125,7 +127,7 @@ install_version() {
 
   (
     mkdir -p "$install_path"
-    cp -a "$ASDF_DOWNLOAD_PATH"/.[!.]* "$ASDF_DOWNLOAD_PATH"/* "$install_path/" 2> /dev/null || cp -a "$ASDF_DOWNLOAD_PATH"/* "$install_path/" || fail "Failed to copy files to install path."
+    cp -a "$ASDF_DOWNLOAD_PATH"/.[!.]* "$ASDF_DOWNLOAD_PATH"/* "$install_path/" 2>/dev/null || cp -a "$ASDF_DOWNLOAD_PATH"/* "$install_path/" || fail "Failed to copy files to install path."
 
     mkdir -p "$bin_path"
 
