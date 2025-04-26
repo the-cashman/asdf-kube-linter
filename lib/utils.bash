@@ -21,9 +21,9 @@ get_os() {
   local os
   os=$(uname -s)
   case $os in
-  Linux) echo "linux" ;;
-  Darwin) echo "darwin" ;;
-  *) fail "Unsupported operating system: $os" ;;
+    Linux) echo "linux" ;;
+    Darwin) echo "darwin" ;;
+    *) fail "Unsupported operating system: $os" ;;
   esac
 }
 
@@ -31,9 +31,9 @@ get_arch() {
   local arch
   arch=$(uname -m)
   case $arch in
-  x86_64 | amd64) echo "amd64" ;;
-  arm64 | aarch64) echo "arm64" ;;
-  *) fail "Unsupported architecture: $arch" ;;
+    x86_64 | amd64) echo "amd64" ;;
+    arm64 | aarch64) echo "arm64" ;;
+    *) fail "Unsupported architecture: $arch" ;;
   esac
 }
 
@@ -72,7 +72,6 @@ download_release() {
   local os arch os_arch version_tag_v version_tag_no_v
   local asset_tarball asset_raw output_path_tarball output_path_raw
   local url_v_tar url_no_v_tar url_v_raw url_no_v_raw
-  local downloaded_asset_filename
 
   os=$(get_os) || exit 1
   arch=$(get_arch) || exit 1
@@ -127,7 +126,7 @@ install_version() {
 
   (
     mkdir -p "$install_path"
-    cp -a "$ASDF_DOWNLOAD_PATH"/.[!.]* "$ASDF_DOWNLOAD_PATH"/* "$install_path/" 2>/dev/null || cp -a "$ASDF_DOWNLOAD_PATH"/* "$install_path/" || fail "Failed to copy files to install path."
+    cp -a "$ASDF_DOWNLOAD_PATH"/.[!.]* "$ASDF_DOWNLOAD_PATH"/* "$install_path/" 2> /dev/null || cp -a "$ASDF_DOWNLOAD_PATH"/* "$install_path/" || fail "Failed to copy files to install path."
 
     mkdir -p "$bin_path"
 
