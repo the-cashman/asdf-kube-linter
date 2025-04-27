@@ -32,17 +32,24 @@ check_version_constraint() {
   v1_padded=$(printf "%-10s" "$version1" | sed 's/ /0/g')
   v2_padded=$(printf "%-10s" "$version2" | sed 's/ /0/g')
 
-  case "$operator" in
-  "==") test "$v1_padded" = "$v2_padded" ;;
-  "!=") test "$v1_padded" != "$v2_padded" ;;
-  ">") test "$v1_padded" \> "$v2_padded" ;;
-  ">=") test "$v1_padded" \>= "$v2_padded" ;;
-  "<") test "$v1_padded" \< "$v2_padded" ;;
-  "<=") test "$v1_padded" \<= "$v2_padded" ;;
-  *)
+  # Use [[ ]] for more robust string comparison operators
+  if [[ "$operator" == "==" ]]; then
+    [[ "$v1_padded" == "$v2_padded" ]]
+  elif [[ "$operator" == "!=" ]]; then
+    [[ "$v1_padded" != "$v2_padded" ]]
+  elif [[ "$operator" == ">" ]]; then
+    [[ "$v1_padded" > "$v2_padded" ]]
+  elif [[ "$operator" == ">=" ]]; then
+    [[ "$v1_padded" > "$v2_padded" || "$v1_padded" == "$v2_padded" ]]
+  elif [[ "$operator" == "<" ]]; then
+    [[ "$v1_padded" < "$v2_padded" ]]
+  elif [[ "$operator" == "<=" ]]; then
+    [[ "$v1_padded" < "$v2_padded" || "$v1_padded" == "$v2_padded" ]]
+  else
     fail "Invalid operator '$operator' in check_version_constraint"
-    ;;
-  esac
+    return 1 # Explicitly return non-zero on failure
+  fi
+  # The return status of the last [[ ]] command is used implicitly
 }
 
 # Helper function to determine the OS identifier used in asset names
