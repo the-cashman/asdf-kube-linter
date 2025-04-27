@@ -25,54 +25,30 @@ final_bin_path="${ASDF_INSTALL_PATH}/bin" # Install directly into final bin dir
 echo "* Downloading $TOOL_NAME $ASDF_INSTALL_VERSION from $download_url..."
 curl "${curl_opts[@]}" -o "$downloaded_file_path" -C - "$download_url" || fail "Could not download $download_url"
 
-# Ensure the final bin directory exists
-mkdir -p "$final_bin_path"
-
-# Handle extraction/placement based on file extension
+# Handle extraction based on file extension
+cleanup_archive=false
 case "$download_ext" in
-".tar.gz")
-    echo "* Extracting $download_filename..."
-    # Create a temporary directory for extraction
-    temp_extract_dir="${ASDF_DOWNLOAD_PATH}/extracted"
-    mkdir -p "$temp_extract_dir"
-
-    # Extract the full archive content
-    tar -xzf "$downloaded_file_path" -C "$temp_extract_dir" || fail "Could not extract archive $downloaded_file_path"
-
-    # Find the kube-linter executable within the extracted contents
-    # Search for a file named exactly TOOL_NAME and ensure it's executable (POSIX compliant check)
-    found_executable=$(find "$temp_extract_dir" -type f -name "$TOOL_NAME" -perm +111 -print -quit)
-
-    if [ -z "$found_executable" ]; then
-      # Fallback: maybe it wasn't marked executable in the archive? Find by name only.
-      found_executable=$(find "$temp_extract_dir" -type f -name "$TOOL_NAME" -print -quit)
-    fi
-
-    if [ -z "$found_executable" ]; then
-       fail "Could not find '$TOOL_NAME' executable within the extracted archive."
-    fi
-
-    echo "* Moving $found_executable to $final_bin_path/$TOOL_NAME"
-    # Ensure it's executable before moving
-    chmod +x "$found_executable" || fail "Could not make found binary executable"
-    mv "$found_executable" "$final_bin_path/$TOOL_NAME" || fail "Could not move executable to final destination"
-
-    # Clean up temporary extraction directory
-    rm -rf "$temp_extract_dir"
+  ".tar.gz")
+    echo "* Extracting $download_filename into $ASDF_DOWNLOAD_PATH..."
+    # Extract directly into the download path, assuming binary is at the root
+    tar -xzf "$downloaded_file_path" -C "$ASDF_DOWNLOAD_PATH" || fail "Could not extract archive $downloaded_file_path"
+    cleanup_archive=true
     ;;
   "") # Raw binary (e.g., older Darwin versions)
-  echo "* Moving raw binary $download_filename to $final_bin_path/$TOOL_NAME..."
-  mv "$downloaded_file_path" "$final_bin_path/$TOOL_NAME" || fail "Could not move binary"
-  chmod +x "$final_bin_path/$TOOL_NAME" || fail "Could not make binary executable"
-  ;;
-*)
-  fail "Unsupported file extension: $download_ext"
-  ;;
+    echo "* Downloaded raw binary $download_filename."
+    # No extraction needed, the downloaded file is the executable.
+    # It will be moved by install_version.
+    ;;
+  *)
+    fail "Unsupported file extension: $download_ext"
+    ;;
 esac
 
-# Clean up downloaded file
-echo "* Cleaning up $downloaded_file_path..."
-rm "$downloaded_file_path"
+# Clean up downloaded archive *if* it was extracted
+if [ "$cleanup_archive" = true ]; then
+  echo "* Cleaning up downloaded archive $downloaded_file_path..."
+  rm "$downloaded_file_path"
+fi
 
-# Verification is handled by bin/install calling lib/utils.bash#install_version
-echo "* $TOOL_NAME $ASDF_INSTALL_VERSION download and preparation complete."
+# Final placement and verification is handled by bin/install calling lib/utils.bash#install_version
+echo "* $TOOL_NAME $ASDF_INSTALL_VERSION download complete. Ready for installation."

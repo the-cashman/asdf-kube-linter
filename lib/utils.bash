@@ -164,14 +164,45 @@ install_version() {
     fail "asdf-$TOOL_NAME supports release installs only"
   fi
 
-  # The bin/download script should have already placed the executable correctly.
-  # This function just needs to verify it exists and is executable.
-  local tool_cmd
-  tool_cmd="$(echo "$TOOL_TEST" | cut -d' ' -f1)"
-  local expected_executable="$bin_path/$tool_cmd"
+  # Create the final bin directory
+  mkdir -p "$bin_path" || fail "Could not create bin directory $bin_path"
 
-  test -x "$expected_executable" || fail "Expected $expected_executable to be executable."
+  # Determine the expected source executable location in the download path
+  local download_info source_executable download_filename download_ext
+  # Call get_download_info again to determine if it was a raw binary or extracted archive
+  download_info=$(get_download_info "$version")
+  # shellcheck disable=SC2162 # We intentionally read into dummy vars
+  read -r _ download_filename download_ext <<< "$download_info"
+
+  if [ "$download_ext" = "" ]; then
+    # Raw binary was downloaded, use its full name
+    source_executable="$ASDF_DOWNLOAD_PATH/$download_filename"
+  else
+    # Archive was extracted, the binary should just be TOOL_NAME
+    source_executable="$ASDF_DOWNLOAD_PATH/$TOOL_NAME"
+  fi
+
+  # Check if the determined source executable actually exists
+  if [ ! -f "$source_executable" ]; then
+    fail "Could not find executable '$source_executable' in download path '$ASDF_DOWNLOAD_PATH'."
+  fi
+
+  # Define the final destination path
+  local final_executable="$bin_path/$TOOL_NAME"
+
+  echo "* Moving $source_executable to $final_executable..."
+  mv "$source_executable" "$final_executable" || fail "Could not move executable to $final_executable"
+
+  echo "* Making $final_executable executable..."
+  chmod +x "$final_executable" || fail "Could not make executable $final_executable"
+
+  # Final verification
+  local tool_cmd
+  tool_cmd="$(echo "$TOOL_TEST" | cut -d' ' -f1)" # Get base command name
+  if [ ! -x "$bin_path/$tool_cmd" ]; then
+     fail "Expected $bin_path/$tool_cmd to be executable after installation."
+  fi
 
   echo "$TOOL_NAME $version installation successful!"
-  # No cleanup needed here as bin/download should handle it if it fails.
+  # Cleanup of ASDF_DOWNLOAD_PATH is implicitly handled by asdf itself or bin/download removing the archive.
 }
