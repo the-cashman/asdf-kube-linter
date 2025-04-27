@@ -8,12 +8,52 @@ plugin_dir=$(dirname "$(dirname "$current_script_path")")
 # shellcheck source=./lib/utils.bash
 source "${plugin_dir}/lib/utils.bash"
 
+# Ensure download path exists
 mkdir -p "$ASDF_DOWNLOAD_PATH"
 
-downloaded_asset_filename=$(download_release "$ASDF_INSTALL_VERSION" "$ASDF_DOWNLOAD_PATH") || exit 1
-downloaded_asset_path="$ASDF_DOWNLOAD_PATH/$downloaded_asset_filename"
+# Get download URL, filename, and extension from the helper function
+download_info=$(get_download_info "$ASDF_INSTALL_VERSION")
+read -r download_url download_filename download_ext <<<"$download_info"
 
-if [[ "$downloaded_asset_filename" == *.tar.gz ]]; then
-  tar -xzf "$downloaded_asset_path" -C "$ASDF_DOWNLOAD_PATH" || fail "Could not extract $downloaded_asset_path"
-  rm "$downloaded_asset_path"
+if [ -z "$download_url" ] || [ -z "$download_filename" ]; then
+  fail "Could not determine download URL or filename for version $ASDF_INSTALL_VERSION."
 fi
+
+downloaded_file_path="$ASDF_DOWNLOAD_PATH/$download_filename"
+final_bin_path="${ASDF_INSTALL_PATH}/bin" # Install directly into final bin dir
+
+echo "* Downloading $TOOL_NAME $ASDF_INSTALL_VERSION from $download_url..."
+curl "${curl_opts[@]}" -o "$downloaded_file_path" -C - "$download_url" || fail "Could not download $download_url"
+
+# Ensure the final bin directory exists
+mkdir -p "$final_bin_path"
+
+# Handle extraction/placement based on file extension
+case "$download_ext" in
+".tar.gz")
+  echo "* Extracting $download_filename..."
+  # Extract directly into the final bin directory. Assumes the binary is top-level in the archive.
+  # If the binary is nested (e.g., in a bin/ folder within the tar), adjust tar options.
+  # Using --strip-components=1 might be needed if it's inside a single top-level folder.
+  # Let's try extracting directly first. If it fails, we might need to adjust.
+  # We only want the 'kube-linter' binary.
+  tar -xzf "$downloaded_file_path" -C "$final_bin_path" --strip-components=1 "${TOOL_NAME}" ||
+    tar -xzf "$downloaded_file_path" -C "$final_bin_path" "${TOOL_NAME}" ||
+    fail "Could not extract $TOOL_NAME from $downloaded_file_path"
+  ;;
+"") # Raw binary (e.g., older Darwin versions)
+  echo "* Moving raw binary $download_filename to $final_bin_path/$TOOL_NAME..."
+  mv "$downloaded_file_path" "$final_bin_path/$TOOL_NAME" || fail "Could not move binary"
+  chmod +x "$final_bin_path/$TOOL_NAME" || fail "Could not make binary executable"
+  ;;
+*)
+  fail "Unsupported file extension: $download_ext"
+  ;;
+esac
+
+# Clean up downloaded file
+echo "* Cleaning up $downloaded_file_path..."
+rm "$downloaded_file_path"
+
+# Verification is handled by bin/install calling lib/utils.bash#install_version
+echo "* $TOOL_NAME $ASDF_INSTALL_VERSION download and preparation complete."
