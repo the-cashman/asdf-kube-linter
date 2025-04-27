@@ -17,13 +17,34 @@ if [ -n "${GITHUB_API_TOKEN:-}" ]; then
   curl_opts=("${curl_opts[@]}" -H "Authorization: token $GITHUB_API_TOKEN")
 fi
 
+# Helper function for version comparison (numeric)
+# Returns 0 if v1 == v2, 1 if v1 > v2, 2 if v1 < v2
+_version_compare() {
+  # Use awk for robust comparison
+  awk -v v1="$1" -v v2="$2" 'BEGIN {
+    split(v1, a, "."); split(v2, b, ".");
+    # Ensure we compare at least 3 parts (major.minor.patch)
+    n = length(a) > length(b) ? length(a) : length(b);
+    if (n < 3) n = 3;
+    for (i=1; i<=n; i++) {
+      # Treat empty parts as 0
+      if (a[i] == "") a[i] = 0;
+      if (b[i] == "") b[i] = 0;
+      # Numeric comparison
+      if (a[i] + 0 > b[i] + 0) exit 1; # v1 > v2
+      if (a[i] + 0 < b[i] + 0) exit 2; # v1 < v2
+    }
+    exit 0; # v1 == v2
+  }'
+  return $?
+}
 get_os() {
   local os
   os=$(uname -s)
   case $os in
-    Linux) echo "linux" ;;
-    Darwin) echo "darwin" ;;
-    *) fail "Unsupported operating system: $os" ;;
+  Linux) echo "linux" ;;
+  Darwin) echo "darwin" ;;
+  *) fail "Unsupported operating system: $os" ;;
   esac
 }
 
@@ -31,9 +52,9 @@ get_arch() {
   local arch
   arch=$(uname -m)
   case $arch in
-    x86_64 | amd64) echo "amd64" ;;
-    arm64 | aarch64) echo "arm64" ;;
-    *) fail "Unsupported architecture: $arch" ;;
+  x86_64 | amd64) echo "amd64" ;;
+  arm64 | aarch64) echo "arm64" ;;
+  *) fail "Unsupported architecture: $arch" ;;
   esac
 }
 
@@ -69,48 +90,83 @@ list_all_versions() {
 download_release() {
   local requested_version="$1"
   local download_dir="$2"
-  local os arch os_arch version_tag_v version_tag_no_v
-  local asset_tarball asset_raw output_path_tarball output_path_raw
-  local url_v_tar url_no_v_tar url_v_raw url_no_v_raw
+  local os arch version_tag asset_name asset_suffix asset_format download_url output_path final_asset_name compare_result arch_suffix
 
   os=$(get_os) || exit 1
   arch=$(get_arch) || exit 1
-  os_arch=$(get_release_asset_os_arch) || exit 1
 
-  asset_tarball="${TOOL_NAME}-${os_arch}.tar.gz"
-  asset_raw="${TOOL_NAME}-${os_arch}"
-  output_path_tarball="${download_dir}/${asset_tarball}"
-  output_path_raw="${download_dir}/${asset_raw}"
-
-  version_tag_v="v${requested_version}"
-  version_tag_no_v="${requested_version}"
-
-  url_v_tar="$GH_REPO/releases/download/${version_tag_v}/${asset_tarball}"
-  url_no_v_tar="$GH_REPO/releases/download/${version_tag_no_v}/${asset_tarball}"
-  url_v_raw="$GH_REPO/releases/download/${version_tag_v}/${asset_raw}"
-  url_no_v_raw="$GH_REPO/releases/download/${version_tag_no_v}/${asset_raw}"
-
-  if curl --fail "${curl_opts[@]}" -o "$output_path_tarball" -C - "$url_v_tar"; then
-    echo "$asset_tarball"
-    return
+  # Determine version tag prefix (v or no v) based on version >= 0.6.1
+  _version_compare "$requested_version" "0.6.1"
+  compare_result=$?
+  if [[ "$compare_result" -eq 0 || "$compare_result" -eq 1 ]]; then # version >= 0.6.1
+    version_tag="v${requested_version}"
+  else # version < 0.6.1
+    version_tag="${requested_version}"
   fi
 
-  if curl --fail "${curl_opts[@]}" -o "$output_path_tarball" -C - "$url_no_v_tar"; then
-    echo "$asset_tarball"
-    return
+  # Determine asset format (tar.gz or raw) based on version and OS
+  asset_format=""
+  asset_suffix=""
+  _version_compare "$requested_version" "0.5.0"
+  compare_result_050=$?
+  _version_compare "$requested_version" "0.6.8"
+  compare_result_068=$?
+
+  if [[ "$compare_result_050" -eq 2 ]]; then # version < 0.5.0 (Assume tar.gz for early versions based on 0.0.2+)
+    asset_format="tar.gz"
+    asset_suffix=".tar.gz"
+  elif [[ "$compare_result_068" -eq 2 ]]; then # version >= 0.5.0 AND version < 0.6.8
+    if [ "$os" == "linux" ]; then
+      asset_format="tar.gz"
+      asset_suffix=".tar.gz"
+    elif [ "$os" == "darwin" ]; then
+      asset_format="raw"
+      asset_suffix="" # No extension for raw binary
+    else
+      # Default or handle other OS if necessary, for now assume tar.gz might exist
+      asset_format="tar.gz"
+      asset_suffix=".tar.gz"
+    fi
+  else # version >= 0.6.8
+    asset_format="tar.gz"
+    asset_suffix=".tar.gz"
   fi
 
-  if curl --fail "${curl_opts[@]}" -o "$output_path_raw" -C - "$url_v_raw"; then
-    echo "$asset_raw"
-    return
+  # Determine architecture suffix and check compatibility (arm64 available >= 0.6.8)
+  arch_suffix=""
+  if [ "$arch" == "arm64" ]; then
+    _version_compare "$requested_version" "0.6.8"
+    compare_result=$?
+    if [[ "$compare_result" -eq 0 || "$compare_result" -eq 1 ]]; then # version >= 0.6.8
+      arch_suffix="_arm64"
+    else # version < 0.6.8
+      fail "Architecture 'arm64' is not supported for ${TOOL_NAME} version ${requested_version} (requires version >= 0.6.8)."
+    fi
   fi
 
-  if curl --fail "${curl_opts[@]}" -o "$output_path_raw" -C - "$url_no_v_raw"; then
-    echo "$asset_raw"
-    return
-  fi
+  # Construct final asset name
+  asset_name="${TOOL_NAME}-${os}${arch_suffix}"
+  final_asset_name="${asset_name}${asset_suffix}"
 
-  fail "Could not download $TOOL_NAME $requested_version. All attempts failed. Tried:\n  - $url_v_tar\n  - $url_no_v_tar\n  - $url_v_raw\n  - $url_no_v_raw"
+  # Construct download URL and output path
+  download_url="${GH_REPO}/releases/download/${version_tag}/${final_asset_name}"
+  output_path="${download_dir}/${final_asset_name}"
+
+  # Log download attempt details to stderr
+  echo "Downloading ${TOOL_NAME} ${requested_version} (${final_asset_name}) for ${os}/${arch}..." >&2
+  echo "URL: ${download_url}" >&2
+
+  # Attempt download using determined URL
+  if curl --fail "${curl_opts[@]}" -o "$output_path" -C - "$download_url"; then
+    echo "$final_asset_name" # Output filename to stdout for the calling script (bin/download)
+    return 0
+  else
+    # Clean up potentially partial download file if it exists
+    if [ -f "$output_path" ]; then
+      rm "$output_path"
+    fi
+    fail "Download failed for ${TOOL_NAME} ${requested_version} from ${download_url}. Please check the version exists, the URL is correct, and your network connection."
+  fi
 }
 
 install_version() {
@@ -126,7 +182,7 @@ install_version() {
 
   (
     mkdir -p "$install_path"
-    cp -a "$ASDF_DOWNLOAD_PATH"/.[!.]* "$ASDF_DOWNLOAD_PATH"/* "$install_path/" 2> /dev/null || cp -a "$ASDF_DOWNLOAD_PATH"/* "$install_path/" || fail "Failed to copy files to install path."
+    cp -a "$ASDF_DOWNLOAD_PATH"/.[!.]* "$ASDF_DOWNLOAD_PATH"/* "$install_path/" 2>/dev/null || cp -a "$ASDF_DOWNLOAD_PATH"/* "$install_path/" || fail "Failed to copy files to install path."
 
     mkdir -p "$bin_path"
 
