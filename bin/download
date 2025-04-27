@@ -40,8 +40,8 @@ case "$download_ext" in
     tar -xzf "$downloaded_file_path" -C "$temp_extract_dir" || fail "Could not extract archive $downloaded_file_path"
 
     # Find the kube-linter executable within the extracted contents
-    # Search for a file named exactly TOOL_NAME and ensure it's executable
-    found_executable=$(find "$temp_extract_dir" -type f -name "$TOOL_NAME" -executable -print -quit)
+    # Search for a file named exactly TOOL_NAME and ensure it's executable (POSIX compliant check)
+    found_executable=$(find "$temp_extract_dir" -type f -name "$TOOL_NAME" -perm +111 -print -quit)
 
     if [ -z "$found_executable" ]; then
       # Fallback: maybe it wasn't marked executable in the archive? Find by name only.
