@@ -31,17 +31,36 @@ mkdir -p "$final_bin_path"
 # Handle extraction/placement based on file extension
 case "$download_ext" in
 ".tar.gz")
-  echo "* Extracting $download_filename..."
-  # Extract directly into the final bin directory. Assumes the binary is top-level in the archive.
-  # If the binary is nested (e.g., in a bin/ folder within the tar), adjust tar options.
-  # Using --strip-components=1 might be needed if it's inside a single top-level folder.
-  # Let's try extracting directly first. If it fails, we might need to adjust.
-  # We only want the 'kube-linter' binary.
-  tar -xzf "$downloaded_file_path" -C "$final_bin_path" --strip-components=1 "${TOOL_NAME}" ||
-    tar -xzf "$downloaded_file_path" -C "$final_bin_path" "${TOOL_NAME}" ||
-    fail "Could not extract $TOOL_NAME from $downloaded_file_path"
-  ;;
-"") # Raw binary (e.g., older Darwin versions)
+    echo "* Extracting $download_filename..."
+    # Create a temporary directory for extraction
+    temp_extract_dir="${ASDF_DOWNLOAD_PATH}/extracted"
+    mkdir -p "$temp_extract_dir"
+
+    # Extract the full archive content
+    tar -xzf "$downloaded_file_path" -C "$temp_extract_dir" || fail "Could not extract archive $downloaded_file_path"
+
+    # Find the kube-linter executable within the extracted contents
+    # Search for a file named exactly TOOL_NAME and ensure it's executable
+    found_executable=$(find "$temp_extract_dir" -type f -name "$TOOL_NAME" -executable -print -quit)
+
+    if [ -z "$found_executable" ]; then
+      # Fallback: maybe it wasn't marked executable in the archive? Find by name only.
+      found_executable=$(find "$temp_extract_dir" -type f -name "$TOOL_NAME" -print -quit)
+    fi
+
+    if [ -z "$found_executable" ]; then
+       fail "Could not find '$TOOL_NAME' executable within the extracted archive."
+    fi
+
+    echo "* Moving $found_executable to $final_bin_path/$TOOL_NAME"
+    # Ensure it's executable before moving
+    chmod +x "$found_executable" || fail "Could not make found binary executable"
+    mv "$found_executable" "$final_bin_path/$TOOL_NAME" || fail "Could not move executable to final destination"
+
+    # Clean up temporary extraction directory
+    rm -rf "$temp_extract_dir"
+    ;;
+  "") # Raw binary (e.g., older Darwin versions)
   echo "* Moving raw binary $download_filename to $final_bin_path/$TOOL_NAME..."
   mv "$downloaded_file_path" "$final_bin_path/$TOOL_NAME" || fail "Could not move binary"
   chmod +x "$final_bin_path/$TOOL_NAME" || fail "Could not make binary executable"
